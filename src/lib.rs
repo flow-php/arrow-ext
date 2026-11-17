@@ -1,15 +1,9 @@
 mod alloc;
-mod exception;
-mod interfaces;
-mod parquet;
-mod php;
-mod render;
-mod thrift;
-mod values;
 
 use ext_php_rs::prelude::*;
 use ext_php_rs::zend::ModuleEntry;
 use ext_php_rs::{info_table_end, info_table_row, info_table_start};
+use flow_parquet_engine::{engine, interfaces, library, php};
 
 #[php_function]
 #[php(name = "Flow\\Arrow\\allocated_bytes")]
@@ -28,7 +22,7 @@ pub extern "C" fn php_module_info(_module: *mut ModuleEntry) {
 
 /// The contract version flow-php/parquet expects (`Flow\Parquet\Engine\ArrowExtension::ABI`); both change together
 /// whenever a registered class or interface, or the schema, options or values crossing them, change.
-const FLOW_ARROW_ABI: i64 = 2;
+const FLOW_ARROW_ABI: i64 = 3;
 
 /// # Safety
 ///
@@ -42,6 +36,18 @@ pub unsafe extern "C" fn module_startup(_type: i32, _module_number: i32) -> i32 
     0
 }
 
+pub extern "C" fn request_startup(_type: i32, _module_number: i32) -> i32 {
+    php::request_startup();
+
+    0
+}
+
+pub extern "C" fn request_shutdown(_type: i32, _module_number: i32) -> i32 {
+    php::request_shutdown();
+
+    0
+}
+
 #[php_module]
 #[php(startup = "module_startup")]
 pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
@@ -49,16 +55,12 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .version(env!("ARROW_VERSION"))
         .info_function(php_module_info)
         .constant(("FLOW_ARROW_ABI", FLOW_ARROW_ABI, &[]))
-        .globals(&php::GLOBALS)
-        .request_startup_function(php::request_startup)
-        .request_shutdown_function(php::request_shutdown)
+        .request_startup_function(request_startup)
+        .request_shutdown_function(request_shutdown)
         .function(wrap_function!(allocated_bytes))
-        .class::<parquet::library::RustColumnsReader>()
-        .class::<parquet::library::RustParquetFooter>()
-        .class::<parquet::library::RustParquetFileReader>()
-        .class::<parquet::library::RustParquetFileWriter>()
-        .class::<parquet::engine::RustParquetEngine>()
-        .class::<parquet::batch::RustBatchReader>()
-        .class::<parquet::batch::RustParquetBatch>()
-        .class::<parquet::batch::RustArrowSchema>()
+        .class::<library::RustColumnsReader>()
+        .class::<library::RustParquetFooter>()
+        .class::<library::RustParquetFileReader>()
+        .class::<library::RustParquetFileWriter>()
+        .class::<engine::RustParquetEngine>()
 }
